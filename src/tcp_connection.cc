@@ -26,49 +26,98 @@ void TcpConnection::Send(std::vector<byte> buffer) {
 }
 
 void TcpConnection::Write() {
-    // write user mode buffer to tcp kernel buffer
-    auto sz = write(fd_, write_buffer_.data(), write_buffer_.size());
+    auto total_sz = write_buffer_.size();
+    auto write_sz = 0;
+
+    // write data until end
+    while(write_sz != total_sz) {
+        auto n = write(fd_, write_buffer_.data(), write_buffer_.size());
+        if(n == -1) {
+            if(errno != EAGAIN || errno != EINTR) {
+                perror("write data to client failed");
+                return;
+            } else {
+                continue;
+            }
+        }
+        write_sz += n;
+    }
+
+    // mod epoll event to write status
+    event_.mask = EPOLLIN | EPOLLET;
+    loop_->ModEvent(event_);
 
     // execute server on write message callback
-    if(sz > 0) {
-        event_.mask = EPOLLIN | EPOLLET;
-        loop_->ModEvent(event_);
-
-        server_->write_complete_callback_(shared_from_this(), sz);
-    }
+    server_->write_complete_callback_(shared_from_this(), write_sz);
 }
 
 void TcpConnection::Read() {
-    // read tcp kernel buffer to user mode buffer
-    byte buf[1024] = {0};
-    auto sz = read(fd_, buf, sizeof(buf));
+    // empty read buffer
+    read_buffer_.clear();
 
-    // client disconnect from server
-    if(sz == 0) {
-        // close client connection
-        Close();
-    }
+    // read until EAGAIN
+    while(true) {
+        // read tcp kernel buffer to user mode buffer
+        byte buf[1024] = {0};
+        auto read_sz = read(fd_, buf, sizeof(buf));
 
-    if(sz > 0) {
-        // execute server on message callback
-        read_buffer_.clear();
-        read_buffer_.insert(read_buffer_.end(), buf, buf + sz);
-        server_->message_callback_(shared_from_this());
+        if(read_sz > 0 && read_sz < 1024) {
+            read_buffer_.insert(read_buffer_.end(), buf, buf + read_sz);
+            server_->message_callback_(shared_from_this());
+            break;
+        }
+        else if(read_sz == 0) {
+            // close client connection
+            Close();
+            break;
+        }
+        else if(read_sz == 1024) {
+            // there is still data readable
+            read_buffer_.insert(read_buffer_.end(), buf, buf + read_sz);
+        }
+        else if(read_sz == -1) {
+            if(errno == EAGAIN) {
+                // read data is empty
+                break;
+            }
+            else if(errno == EINTR) {
+                // read data interrupt
+                continue;
+            }
+            else {
+                perror("read data from client failed");
+                break;
+            }
+        }
+        else {
+            perror("read data from client failed");
+            break;
+        }
     }
 }
 
 void TcpConnection::Close() {
     // delete client fd and event from epoll
     loop_->DelEvent(event_);
-    close(fd_);
 
-    // execute client close callback function
-    server_->client_close_callback_(shared_from_this());
+    // close socket
+    close(fd_);
 
     // erase from server
     server_->EraseConnection(fd_);
+
+    // execute client close callback function
+    server_->client_close_callback_(shared_from_this());
 }
 
 void TcpConnection::Error() {
+    // delete client fd and event from epoll
+    loop_->DelEvent(event_);
+    close(fd_);
+
+    // execute client error callback function
     server_->client_error_callback_(shared_from_this());
+
+    // erase from server
+    server_->EraseConnection(fd_);
 }
