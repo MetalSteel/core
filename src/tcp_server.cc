@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <iostream>
 
 using namespace core;
 
@@ -117,6 +118,24 @@ void TcpServer::EraseConnection(int fd) {
     if(itor != connections_.end()) {
         connections_.erase(itor);
     }
+}
+
+void TcpServer::HandleClientClose(std::shared_ptr<TcpConnection> connection) {
+    // execute client close callback
+    client_close_callback_(connection);
+
+    // erase connection from server
+    auto svr = connection->Server();
+    svr->EraseConnection(connection->Fd());
+}
+
+void TcpServer::HandleClientError(std::shared_ptr<TcpConnection> connection) {
+    // execute client error callback
+    client_error_callback_(connection);
+
+    // erase connection from server
+    auto svr = connection->Server();
+    svr->EraseConnection(connection->Fd());
 }
 
 

@@ -14,23 +14,21 @@ void ServerError() {
 
 void OnMessage(std::shared_ptr<TcpConnection> connection) {
     auto buffer = connection->ReadBuffer();
-    std::cout << "recv data from client[" << connection->Address().ToString() << "]." << std::endl;
-    for(ssize_t i = 0; i < buffer.size(); ++i) {
-        if(i % 16 == 0) {
-            printf("\n");
-        }
-        printf("%02X ", buffer[i]);
-    }
-    printf("\n");
-    std::cout << "=====================================" << std::endl;
+    std::cout << "recv data from client[" << connection->Address().ToString() << "] size " << buffer.size() << std::endl;
+//    for(ssize_t i = 0; i < buffer.size(); ++i) {
+//        if(i % 16 == 0) {
+//            printf("\n");
+//        }
+//        printf("%02X ", buffer[i]);
+//    }
+//    printf("\n");
+//    std::cout << "=====================================" << std::endl;
 
     connection->Send(buffer);
 }
 
 void OnComplete(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
-    std::cout << std::endl;
-    std::cout << "write data from client[" << connection->Address().ToString() << "] size " << sz << std::endl;
-    std::cout << std::endl;
+    std::cout << "write data to client[" << connection->Address().ToString() << "] size " << sz << std::endl;
 }
 
 void ClientClose(std::shared_ptr<TcpConnection> connection) {

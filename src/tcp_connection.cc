@@ -78,11 +78,13 @@ void TcpConnection::Read() {
         else if(read_sz == -1) {
             if(errno == EAGAIN) {
                 // read data is empty
+                server_->message_callback_(shared_from_this());
                 break;
             }
             else if(errno == EINTR) {
                 // read data interrupt
-                continue;
+                perror("read data from client failed");
+                break;
             }
             else {
                 perror("read data from client failed");
@@ -103,11 +105,8 @@ void TcpConnection::Close() {
     // close socket
     close(fd_);
 
-    // erase from server
-    server_->EraseConnection(fd_);
-
-    // execute client close callback function
-    server_->client_close_callback_(shared_from_this());
+    // handle client close
+    server_->HandleClientClose(shared_from_this());
 }
 
 void TcpConnection::Error() {
@@ -115,9 +114,6 @@ void TcpConnection::Error() {
     loop_->DelEvent(event_);
     close(fd_);
 
-    // execute client error callback function
-    server_->client_error_callback_(shared_from_this());
-
-    // erase from server
-    server_->EraseConnection(fd_);
+    // handle client error
+    server_->HandleClientError(shared_from_this());
 }

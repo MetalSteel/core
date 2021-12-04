@@ -28,6 +28,7 @@ namespace core {
 
         int Fd() { return fd_; }
         SocketAddress Address() { return address_; }
+        TcpServer* Server() { return server_; }
 
         std::vector<byte>& ReadBuffer() { return read_buffer_; }
         std::vector<byte>& WriteBuffer() { return write_buffer_; }

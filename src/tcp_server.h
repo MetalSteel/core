@@ -31,10 +31,13 @@ namespace core {
         void OnComplete(std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> callback);
         void ClientClose(std::function<void(std::shared_ptr<TcpConnection>)> callback);
         void ClientError(std::function<void(std::shared_ptr<TcpConnection>)> callback);
+        void EraseConnection(int fd);
 
     private:
         void Accept();
-        void EraseConnection(int fd);
+
+        void HandleClientClose(std::shared_ptr<TcpConnection> connection);
+        void HandleClientError(std::shared_ptr<TcpConnection> connection);
 
     private:
         int fd_;
