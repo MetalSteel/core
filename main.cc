@@ -36,12 +36,19 @@ private:
 
     void OnMessage(std::shared_ptr<TcpConnection> connection) {
         auto buffer = connection->ReadBuffer();
-        std::cout << "recv data from client[" << connection->Address().ToString() << "] size " << buffer.size() << std::endl;
-        connection->Send(buffer);
+        if(buffer[buffer.size() - 1] == 'Z') {
+            std::cout << "recv data from client[" << connection->Address().ToString() << "] size " << buffer.size() << std::endl;
+            connection->Send(buffer);
+        } else {
+            auto &write_buffer = connection->WriteBuffer();
+            write_buffer.insert(write_buffer.end(), buffer.begin(), buffer.end());
+        }
+
     }
 
     void OnCompleted(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
         std::cout << "write data to client[" << connection->Address().ToString() << "] size " << sz << std::endl;
+        // connection->Close();
     }
 
     void OnClose(std::shared_ptr<TcpConnection> connection) {
