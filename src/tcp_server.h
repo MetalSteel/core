@@ -12,9 +12,7 @@
 #include "event_loop.h"
 
 namespace core {
-    class TcpServer {
-        friend class TcpConnection;
-
+class TcpServer {
     public:
         TcpServer(std::shared_ptr<EventLoop> loop, SocketAddress address);
 
@@ -23,12 +21,11 @@ namespace core {
         void SetTcpNoDelay(bool on);
 
         bool BindAndListen();
-
         void ServerError(std::function<void()> callback);
 
         void OnOpen(std::function<void(std::shared_ptr<TcpConnection>)> callback);
         void OnMessage(std::function<void(std::shared_ptr<TcpConnection>)> callback);
-        void OnComplete(std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> callback);
+        void OnCompleted(std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> callback);
         void OnClose(std::function<void(std::shared_ptr<TcpConnection>)> callback);
         void OnError(std::function<void(std::shared_ptr<TcpConnection>)> callback);
 
@@ -36,6 +33,8 @@ namespace core {
         void Accept();
 
         void EraseConnection(int fd);
+        void HandleReadMessage(std::shared_ptr<TcpConnection> connection);
+        void HandleWriteComplete(std::shared_ptr<TcpConnection> connection, ssize_t sz);
         void HandleClientClose(std::shared_ptr<TcpConnection> connection);
         void HandleClientError(std::shared_ptr<TcpConnection> connection);
 
@@ -45,11 +44,11 @@ namespace core {
         std::shared_ptr<EventLoop> loop_;
         std::map<int, std::shared_ptr<TcpConnection>> connections_;
 
-        std::function<void(std::shared_ptr<TcpConnection>)> new_connection_callback_;
         std::function<void()> server_error_callback_;
 
-        std::function<void(std::shared_ptr<TcpConnection>)> message_callback_;
-        std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> write_complete_callback_;
+        std::function<void(std::shared_ptr<TcpConnection>)> new_connection_callback_;
+        std::function<void(std::shared_ptr<TcpConnection>)> read_message_callback_;
+        std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> write_completed_callback_;
         std::function<void(std::shared_ptr<TcpConnection>)> client_close_callback_;
         std::function<void(std::shared_ptr<TcpConnection>)> client_error_callback_;
     };

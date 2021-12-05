@@ -1,9 +1,11 @@
 #include "tcp_server.h"
+
 #include <signal.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+
 #include <iostream>
 
 using namespace core;
@@ -17,7 +19,7 @@ TcpServer::TcpServer(std::shared_ptr<EventLoop> loop, SocketAddress address)
     }
 
     // create server socket
-    fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    fd_ = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
 
     // check error
     if(fd_ == -1) {
@@ -80,7 +82,13 @@ void TcpServer::Accept() {
     auto itor = connections_.find(cli_fd);
     if(itor == connections_.end()) {
         // create client connection
-        auto connection = std::make_shared<TcpConnection>(cli_fd, cli_addr, loop_, this);
+        auto connection = std::make_shared<TcpConnection>(cli_fd, cli_addr, loop_);
+
+        // pass on tcp connection callback
+        connection->read_message_callback_ = std::bind(&TcpServer::HandleReadMessage, this, std::placeholders::_1);
+        connection->write_completed_callback_ = std::bind(&TcpServer::HandleWriteComplete, this, std::placeholders::_1, std::placeholders::_2);
+        connection->client_close_callback_ = std::bind(&TcpServer::HandleClientClose, this, std::placeholders::_1);
+        connection->client_error_callback_ = std::bind(&TcpServer::HandleClientError, this, std::placeholders::_1);
 
         // add into connections map
         connections_[cli_fd] = connection;
@@ -90,21 +98,22 @@ void TcpServer::Accept() {
     }
 }
 
-void TcpServer::OnOpen(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
-    new_connection_callback_ = callback;
-}
-
 void TcpServer::ServerError(std::function<void()> callback) {
     server_error_callback_ = callback;
 }
 
-void TcpServer::OnMessage(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
-    message_callback_ = callback;
+void TcpServer::OnOpen(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
+    new_connection_callback_ = callback;
 }
 
-void TcpServer::OnComplete(std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> callback) {
-    write_complete_callback_ = callback;
+void TcpServer::OnMessage(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
+    read_message_callback_ = callback;
 }
+
+void TcpServer::OnCompleted(std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> callback) {
+    write_completed_callback_ = callback;
+}
+
 void TcpServer::OnClose(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
     client_close_callback_ = callback;
 }
@@ -120,13 +129,22 @@ void TcpServer::EraseConnection(int fd) {
     }
 }
 
+void TcpServer::HandleReadMessage(std::shared_ptr<TcpConnection> connection) {
+    // execute client read message callback
+    read_message_callback_(connection);
+}
+
+void TcpServer::HandleWriteComplete(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
+    // execute write complete callback
+    write_completed_callback_(connection, sz);
+}
+
 void TcpServer::HandleClientClose(std::shared_ptr<TcpConnection> connection) {
     // execute client close callback
     client_close_callback_(connection);
 
     // erase connection from server
-    auto svr = connection->Server();
-    svr->EraseConnection(connection->Fd());
+    EraseConnection(connection->Fd());
 }
 
 void TcpServer::HandleClientError(std::shared_ptr<TcpConnection> connection) {
@@ -134,6 +152,5 @@ void TcpServer::HandleClientError(std::shared_ptr<TcpConnection> connection) {
     client_error_callback_(connection);
 
     // erase connection from server
-    auto svr = connection->Server();
-    svr->EraseConnection(connection->Fd());
+    EraseConnection(connection->Fd());
 }

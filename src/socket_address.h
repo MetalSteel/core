@@ -9,6 +9,7 @@
 #define CORE_SOCKET_ADDRESS_H
 
 #include <arpa/inet.h>
+
 #include <string>
 
 namespace core {

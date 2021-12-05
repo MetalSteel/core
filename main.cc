@@ -15,7 +15,7 @@ public:
 
         server_.OnOpen(std::bind(&EchoServer::OnOpen, this, std::placeholders::_1));
         server_.OnMessage(std::bind(&EchoServer::OnMessage, this, std::placeholders::_1));
-        server_.OnComplete(std::bind(&EchoServer::OnComplete, this, std::placeholders::_1, std::placeholders::_2));
+        server_.OnCompleted(std::bind(&EchoServer::OnCompleted, this, std::placeholders::_1, std::placeholders::_2));
         server_.OnClose(std::bind(&EchoServer::OnClose, this, std::placeholders::_1));
         server_.OnError(std::bind(&EchoServer::OnError, this, std::placeholders::_1));
     }
@@ -40,7 +40,7 @@ private:
         connection->Send(buffer);
     }
 
-    void OnComplete(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
+    void OnCompleted(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
         std::cout << "write data to client[" << connection->Address().ToString() << "] size " << sz << std::endl;
     }
 
