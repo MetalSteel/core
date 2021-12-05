@@ -21,6 +21,9 @@ namespace core {
         sockaddr* SockAddr();
         socklen_t& SockLen();
 
+        std::string IP() { return ip_; }
+        uint16_t Port() { return port_; }
+
         std::string ToString();
     private:
         std::string ip_;

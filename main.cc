@@ -4,76 +4,62 @@
 
 using namespace core;
 
-void NewConnection(std::shared_ptr<TcpConnection> connection) {
-    std::cout << "new client[" << connection->Address().ToString() << "] connect success." << std::endl;
-}
+class EchoServer {
+public:
+    EchoServer(std::string addr) : loop_(std::make_shared<EventLoop>()), server_(loop_, addr) {
+        server_.SetReuseAddr(true);
+        server_.SetReusePort(true);
+        server_.SetTcpNoDelay(true);
 
-void ServerError() {
-    std::cout << "server unknown error." << std::endl;
-}
+        server_.ServerError(std::bind(&EchoServer::ServerError, this));
 
-void OnMessage(std::shared_ptr<TcpConnection> connection) {
-    auto buffer = connection->ReadBuffer();
-    std::cout << "recv data from client[" << connection->Address().ToString() << "] size " << buffer.size() << std::endl;
-//    for(ssize_t i = 0; i < buffer.size(); ++i) {
-//        if(i % 16 == 0) {
-//            printf("\n");
-//        }
-//        printf("%02X ", buffer[i]);
-//    }
-//    printf("\n");
-//    std::cout << "=====================================" << std::endl;
+        server_.OnOpen(std::bind(&EchoServer::OnOpen, this, std::placeholders::_1));
+        server_.OnMessage(std::bind(&EchoServer::OnMessage, this, std::placeholders::_1));
+        server_.OnComplete(std::bind(&EchoServer::OnComplete, this, std::placeholders::_1, std::placeholders::_2));
+        server_.OnClose(std::bind(&EchoServer::OnClose, this, std::placeholders::_1));
+        server_.OnError(std::bind(&EchoServer::OnError, this, std::placeholders::_1));
+    }
 
-    connection->Send(buffer);
-}
+    void Start() {
+        server_.BindAndListen();
+        loop_->Loop();
+    }
 
-void OnComplete(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
-    std::cout << "write data to client[" << connection->Address().ToString() << "] size " << sz << std::endl;
-}
+private:
+    void OnOpen(std::shared_ptr<TcpConnection> connection) {
+        std::cout << "new client[" << connection->Address().ToString() << "] connect success." << std::endl;
+    }
 
-void ClientClose(std::shared_ptr<TcpConnection> connection) {
-    std::cout << "client[" << connection->Address().ToString() << "] disconnect." << std::endl;
-}
+    void ServerError() {
+        std::cout << "server unknown error." << std::endl;
+    }
 
-void ClientError(std::shared_ptr<TcpConnection> connection) {
-    std::cout << "client unknown error." << std::endl;
-}
+    void OnMessage(std::shared_ptr<TcpConnection> connection) {
+        auto buffer = connection->ReadBuffer();
+        std::cout << "recv data from client[" << connection->Address().ToString() << "] size " << buffer.size() << std::endl;
+        connection->Send(buffer);
+    }
+
+    void OnComplete(std::shared_ptr<TcpConnection> connection, ssize_t sz) {
+        std::cout << "write data to client[" << connection->Address().ToString() << "] size " << sz << std::endl;
+    }
+
+    void OnClose(std::shared_ptr<TcpConnection> connection) {
+        std::cout << "client[" << connection->Address().ToString() << "] disconnect." << std::endl;
+    }
+
+    void OnError(std::shared_ptr<TcpConnection> connection) {
+        std::cout << "client unknown error." << std::endl;
+    }
+
+private:
+    std::shared_ptr<EventLoop> loop_;
+    TcpServer server_;
+};
 
 int main(int argc, char *argv[]) {
-
-    auto loop = std::make_shared<EventLoop>();
-
-    TcpServer srv(loop, SocketAddress("127.0.0.1:9899"));
-    srv.SetReuseAddr(true);
-    srv.SetReusePort(true);
-    srv.SetTcpNoDelay(true);
-
-    srv.NewConnection(NewConnection);
-    srv.ServerError(ServerError);
-
-    srv.OnMessage(OnMessage);
-    srv.OnComplete(OnComplete);
-    srv.ClientClose(ClientClose);
-    srv.ClientError(ClientError);
-
-    srv.BindAndListen();
-
-    loop->Loop();
+    EchoServer server("127.0.0.1:9876");
+    server.Start();
 
     return EXIT_SUCCESS;
 }
-/*
-10 5e 00 04 4d 51 54 54 04 ee 00 3c 00 20 37 36
-37 31 64 32 34 32 66 65 32 39 34 32 31 37 61 39
-32 65 34 61 62 34 31 63 34 35 35 34 34 34 00 13
-2f 6f 66 66 6c 69 6e 65 2f 6b 61 79 2d 63 6c 69
-65 6e 74 00 0e 64 65 76 69 63 65 20 6f 66 66 6c
-69 6e 65 00 03 6b 61 79 00 06 31 32 33 34 35 36
-
-10 5E 00 04 4D 51 54 54 04 EE 00 3C 00 20 37 36
-37 31 64 32 34 32 66 65 32 39 34 32 31 37 61 39
-32 65 34 61 62 34 31 63 34 35 35 34 34 34 00 13
-2F 6F 66 66 6C 69 6E 65 2F 6B 61 79 2D 63 6C 69
-65 6E 74 00 0E 64 65 76 69 63 65 20 6F 66 66 6C
-69 6E 65 00 03 6B 61 79 00 06 31 32 33 34 35 36
-*/

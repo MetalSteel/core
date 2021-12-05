@@ -24,7 +24,6 @@ namespace core {
 
         void Send(std::vector<byte> write_buffer_);
         void Close();
-        void Error();
 
         int Fd() { return fd_; }
         SocketAddress Address() { return address_; }
@@ -36,6 +35,7 @@ namespace core {
     private:
         void Write();
         void Read();
+        void Error();
 
     private:
         int fd_;

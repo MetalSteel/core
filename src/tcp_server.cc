@@ -90,7 +90,7 @@ void TcpServer::Accept() {
     }
 }
 
-void TcpServer::NewConnection(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
+void TcpServer::OnOpen(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
     new_connection_callback_ = callback;
 }
 
@@ -105,11 +105,11 @@ void TcpServer::OnMessage(std::function<void(std::shared_ptr<TcpConnection>)> ca
 void TcpServer::OnComplete(std::function<void(std::shared_ptr<TcpConnection>, ssize_t)> callback) {
     write_complete_callback_ = callback;
 }
-void TcpServer::ClientClose(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
+void TcpServer::OnClose(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
     client_close_callback_ = callback;
 }
 
-void TcpServer::ClientError(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
+void TcpServer::OnError(std::function<void(std::shared_ptr<TcpConnection>)> callback) {
     client_error_callback_ = callback;
 }
 
@@ -137,8 +137,3 @@ void TcpServer::HandleClientError(std::shared_ptr<TcpConnection> connection) {
     auto svr = connection->Server();
     svr->EraseConnection(connection->Fd());
 }
-
-
-
-
-
